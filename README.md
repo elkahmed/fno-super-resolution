@@ -1,6 +1,6 @@
 # FNO Super-Resolution — 2D Darcy Flow
 
-Final Project — Scientific Machine Learning, Mines Paris PSL / SPEIT 2026
+Final Project — Scientific Machine Learning, SPEIT 2026
 
 ## Objective
 
