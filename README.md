@@ -1,64 +1,81 @@
-# FNO Super-Resolution — Équation de la Chaleur 2D
+# FNO Super-Resolution — 2D Darcy Flow
 
-Projet final — Scientific Machine Learning, Mines Paris PSL / SPEIT 2026
+Final Project — Scientific Machine Learning, Mines Paris PSL / SPEIT 2026
 
-## Description
+## Objective
 
-Ce projet applique un **Fourier Neural Operator (FNO)** au problème de super-résolution d'images, en l'interprétant comme un opérateur inverse de diffusion thermique 2D. On apprend à reconstruire une image haute résolution à partir de sa version basse résolution (facteur ×4), et on compare les performances du FNO à un CNN baseline classique.
+Learn the super-resolution operator for the 2D Darcy equation:
 
-Dataset utilisé : **Oxford Flowers-102** (8 189 photos naturelles, paires HR/LR générées par downsampling bicubic ×4).
+$$-\nabla \cdot (a(x,y)\,\nabla u) = f \quad \text{on } [0,1]^2$$
 
-## Dépendances
+The model takes `[a(x,y), u_LR]` as input (permeability field + low-resolution solution) and predicts the high-resolution solution `u_HR`.
 
-```bash
-pip install torch numpy scipy matplotlib datasets pillow
-```
+Three models compared: **CNN (SRCNN)**, **FNO-8**, **FNO-16**.
 
-Testé avec Python 3.10 et PyTorch 2.x.
-
-## Comment exécuter
-
-Ouvrir et exécuter toutes les cellules du notebook dans l'ordre :
+## Usage
 
 ```bash
-jupyter notebook FNO_SuperResolution.ipynb
+jupyter notebook FNO_Darcy_super_resolution4_64.ipynb
 ```
 
-Aucune intervention manuelle n'est nécessaire. Les figures sont sauvegardées automatiquement dans `results/`.
+Run all cells in order. The dataset is generated automatically or reloaded from `data4_64/` if it already exists.  
+After training, reload models using the **"Run this cell after kernel restart"** cell.
 
-## Structure du projet
+## Configuration
+
+| Parameter | Value |
+|-----------|-------|
+| HR_SIZE | 64 |
+| LR_SIZE | 4 — scale ×16 |
+| N_TRAIN | 800 |
+| N_TEST | 200 |
+| EPOCHS | 200 |
+| BATCH_SIZE | 16 |
+| Optimizer | Adam + StepLR (÷2 every 50 epochs) |
+
+## Results — test set (in-distribution)
+
+| Model | Params | Relative L2 | PSNR (dB) |
+|-------|--------|-------------|-----------|
+| FNO-16 | 2 105 889 | **0.0188** | **45.6** |
+| FNO-8 | 533 025 | 0.0229 | 43.9 |
+| CNN | 131 649 | 0.0375 | 39.6 |
+
+## Results — Zero-shot (out-of-distribution generalization)
+
+Models trained on 4→64 (×16), tested on unseen resolutions:
+
+| Config | CNN RL2 | FNO-8 RL2 | FNO-16 RL2 |
+|--------|---------|-----------|------------|
+| ZS-1 : 4→128 (×32) | 0.207 | 0.038 | **0.031** |
+| ZS-2 : 8→64 (×8) | 0.144 | 0.124 | 0.127 |
+| ZS-3 : 8→128 (×16) | 0.178 | 0.133 | **0.133** |
+
+ZS-1 highlights the key FNO advantage: ×7 better generalization than CNN on an unseen resolution.
+
+## Project Structure
 
 ```
 project/
-├── FNO_SuperResolution.ipynb   # notebook principal
+├── FNO_Darcy_super_resolution4_64.ipynb   # main notebook
+├── FNO_Darcy_super_resolution4_68.ipynb   # variant 8->64
 ├── README.md
-└── results/                    # généré à l'exécution
-    ├── dataset_samples.png
-    ├── training_curves.png
-    ├── qualitative_comparison.png
+├── data4_64/                              # saved models and dataset
+│   ├── coeff_train.npy / sol_train.npy
+│   ├── coeff_test.npy  / sol_test.npy
+│   ├── cnn.pt / fno8.pt / fno16.pt
+│   └── cnn_losses.npy / fno8_losses.npy / fno16_losses.npy
+└── results4_64/                           # figures and metrics
+    ├── loss_comparison.png
+    ├── metrics_comparison.png
     ├── metrics.csv
-    ├── zero_shot_sr.png
-    └── ablation_modes.png
+    ├── qualitative_clean.png
+    ├── error_maps.png
+    ├── zero_shot_comparison.png
+    ├── zero_shot_metrics.csv
+    └── zero_shot_qualitative.png
 ```
 
-## Contenu du notebook
-
-| Section | Contenu |
-|---------|---------|
-| 1 · Configuration | hyperparamètres centralisés |
-| 2 · Dataset | chargement Oxford Flowers-102 via torchvision |
-| 3 · Architecture | FNO-2D + CNN baseline |
-| 4 · Entraînement | boucle train/test, métriques relL2 / PSNR |
-| 5 · Résultats | courbes de convergence + comparaison visuelle |
-| 6 · Zero-Shot SR | FNO ×4 évalué à ×8 sans ré-entraînement |
-| 7 · Ablation | impact du nombre de modes Fourier kmax ∈ {4, 8, 12, 16} |
-
-## Reproduire les résultats
-
-Les hyperparamètres principaux sont dans la cellule 1 du notebook. Les valeurs par défaut reproduisent les résultats du rapport (`MODES=12`, `WIDTH=32`, `EPOCHS=50`, `SCALE=4`).
-
-La graine aléatoire est fixée (`seed=42`) pour garantir la reproductibilité.
-
-## Référence
+## Reference
 
 Z. Li et al. — *Fourier Neural Operator for Parametric Partial Differential Equations*, ICLR 2021.
